@@ -1,31 +1,64 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Trash2, Plus, Package, AlertTriangle } from 'lucide-react';
+import { Edit2, Trash2, Plus, Package, AlertTriangle, Search, Sparkles } from 'lucide-react';
 import ProductForm from '../components/ProductForm';
-import AdminNavbar from '../components/AdminNavbar'; // Import the Navbar
+import AdminNavbar from '../components/AdminNavbar';
 import toast from 'react-hot-toast';
+
+// Animation Variants for Staggered List
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50 } }
+};
 
 export default function Products() {
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  
-  // State to control which language is displayed in the list
   const [viewLang, setViewLang] = useState('en'); 
 
   const fetchProducts = async () => {
+    setLoading(true);
     try {
       const res = await api.get('/products');
       setProducts(res.data.list || []);
+      setFilteredProducts(res.data.list || []);
     } catch (error) {
       toast.error('Failed to load products');
+    } finally {
+      setTimeout(() => setLoading(false), 500); // Small delay for smooth UI
     }
   };
 
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // Handle Search Filtering
+  useEffect(() => {
+    const lowerTerm = searchTerm.toLowerCase();
+    const filtered = products.filter(p => {
+      const display = getDisplayInfo(p);
+      return (display.title?.toLowerCase() || '').includes(lowerTerm) || 
+             (display.subtitle?.toLowerCase() || '').includes(lowerTerm);
+    });
+    setFilteredProducts(filtered);
+  }, [searchTerm, products, viewLang]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
@@ -38,128 +71,176 @@ export default function Products() {
     }
   };
 
-  // Helper to extract display info based on selected viewLang
   const getDisplayInfo = (p) => {
-    // 1. Try selected language
-    if (p.translations?.[viewLang]) {
-        return p.translations[viewLang];
-    }
-    // 2. Fallback to English (if viewing Hindi but Hindi data is missing)
-    if (p.translations?.en) {
-        return p.translations.en;
-    }
-    // 3. Fallback to root (old data structure)
+    if (p.translations?.[viewLang]) return p.translations[viewLang];
+    if (p.translations?.en) return p.translations.en;
     return p;
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* 1. Navbar is placed here at the top level */}
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       <AdminNavbar viewLang={viewLang} setViewLang={setViewLang} />
 
-      <div className="p-8 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Product Inventory</h1>
-            <p className="text-slate-500 mt-1">
-              Viewing catalog in <span className="font-bold text-emerald-600 uppercase">{viewLang === 'en' ? 'English' : 'Hindi'}</span>
+      <div className="p-6 md:p-10 max-w-7xl mx-auto">
+        
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 flex items-center gap-3">
+              Inventory <span className="text-emerald-500 text-lg font-mono bg-emerald-50 px-2 py-1 rounded-full">{products.length} Items</span>
+            </h1>
+            <p className="text-slate-500 font-medium">
+              Managing catalog in <span className="text-emerald-600 font-bold uppercase tracking-wider">{viewLang === 'en' ? 'English' : 'Hindi'}</span>
             </p>
           </div>
-          <button 
-            onClick={() => { setEditingProduct(null); setIsFormOpen(true); }}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-emerald-200 active:scale-95"
+
+          <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+            {/* Search Bar */}
+            <div className="relative group w-full md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search products..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+              />
+            </div>
+
+            {/* Add Button */}
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => { setEditingProduct(null); setIsFormOpen(true); }}
+              className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-slate-200 hover:shadow-emerald-200 transition-all duration-300"
+            >
+              <Plus size={20} />
+              <span>Add New</span>
+            </motion.button>
+          </div>
+        </div>
+
+        {/* Content Grid */}
+        {loading ? (
+          <ProductSkeleton />
+        ) : (
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           >
-            <Plus size={20} /> Add Product
-          </button>
-        </div>
+            <AnimatePresence>
+              {filteredProducts.map((product) => {
+                const display = getDisplayInfo(product);
+                const isMissingTranslation = viewLang === 'hi' && !product.translations?.hi;
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => {
-            const display = getDisplayInfo(product);
-            
-            // Check if data actually exists for the selected language
-            const isMissingTranslation = viewLang === 'hi' && !product.translations?.hi;
+                return (
+                  <motion.div 
+                    key={product.id}
+                    variants={itemVariants}
+                    layout
+                    whileHover={{ y: -8, transition: { duration: 0.2 } }}
+                    className="group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300"
+                  >
+                    {/* Image Area */}
+                    <div className="h-56 relative overflow-hidden bg-slate-100">
+                      {product.image_url ? (
+                        <img 
+                          src={product.image_url} 
+                          alt={display.title} 
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-slate-300 bg-slate-50">
+                          <Package size={48} strokeWidth={1.5} />
+                          <span className="text-xs font-medium mt-2">No Image</span>
+                        </div>
+                      )}
+                      
+                      {/* Floating Badges */}
+                      <div className="absolute top-3 left-3 flex gap-2">
+                         {/* Tag Example */}
+                         <div className="bg-white/90 backdrop-blur-md px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-800 shadow-sm">
+                            SKU: {product.id.toString().slice(-4)}
+                         </div>
+                      </div>
 
-            return (
-              <motion.div 
-                key={product.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-xl shadow-sm hover:shadow-md border border-slate-100 overflow-hidden transition-all group relative"
-              >
-                {/* Image Area */}
-                <div className="h-48 overflow-hidden bg-slate-50 relative">
-                  {product.image_url ? (
-                    <img 
-                      src={product.image_url} 
-                      alt={display.title} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-slate-300">
-                      <Package size={48} />
+                      {/* Missing Translation Overlay */}
+                      {isMissingTranslation && (
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center z-10 transition-opacity">
+                           <div className="bg-amber-500 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg transform translate-y-2">
+                             <AlertTriangle size={14} /> 
+                             <span>Hindi Content Missing</span>
+                           </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  
-                  {/* Warning if translation missing */}
-                  {isMissingTranslation && (
-                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center z-10">
-                       <div className="bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm">
-                         <AlertTriangle size={14} /> Hindi Missing
-                       </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Content Area */}
-                <div className="p-5">
-                  <h3 className="font-bold text-lg text-slate-800 mb-1 leading-tight">
-                    {display.title || <span className="text-slate-300 italic">Untitled</span>}
-                  </h3>
-                  
-                  <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide mb-2 truncate">
-                    {display.subtitle || "—"}
-                  </p>
-                  
-                  <p className="text-slate-500 text-sm line-clamp-2 mb-4 h-10 leading-relaxed">
-                    {display.description || "No description available."}
-                  </p>
-                  
-                  <div className="flex justify-between items-center pt-4 border-t border-slate-100">
-                    <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-600 font-medium">
-                      {product.pack_sizes ? product.pack_sizes.length : 0} Sizes
-                    </span>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => { setEditingProduct(product); setIsFormOpen(true); }}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit Details"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(product.id)}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete Product"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                    
+                    {/* Card Body */}
+                    <div className="p-5 flex-1 flex flex-col">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg text-slate-800 leading-snug mb-1 group-hover:text-emerald-600 transition-colors">
+                          {display.title || <span className="text-slate-300 italic">Untitled Product</span>}
+                        </h3>
+                        
+                        <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-3">
+                          {display.subtitle || "General"}
+                        </p>
+                        
+                        <p className="text-slate-500 text-sm line-clamp-2 leading-relaxed h-10 mb-4">
+                          {display.description || "No description available for this item."}
+                        </p>
+                      </div>
+                      
+                      {/* Footer / Actions */}
+                      <div className="pt-4 border-t border-slate-100 flex items-center justify-between mt-auto">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-md">
+                          <Package size={14} />
+                          {product.pack_sizes ? product.pack_sizes.length : 0} Variants
+                        </div>
 
-        {/* Slide-over Form */}
+                        <div className="flex gap-2">
+                          <ActionBtn 
+                            icon={Edit2} 
+                            onClick={() => { setEditingProduct(product); setIsFormOpen(true); }}
+                            color="blue" 
+                          />
+                          <ActionBtn 
+                            icon={Trash2} 
+                            onClick={() => handleDelete(product.id)}
+                            color="red" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </motion.div>
+        )}
+
+        {!loading && filteredProducts.length === 0 && (
+          <div className="text-center py-20 opacity-50">
+            <div className="bg-slate-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="text-slate-400" size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-slate-700">No products found</h3>
+            <p className="text-slate-500">Try adjusting your search or add a new item.</p>
+          </div>
+        )}
+
+        {/* Modal Overlay */}
         <AnimatePresence>
           {isFormOpen && (
             <>
               <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 0.5 }} exit={{ opacity: 0 }}
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
                 onClick={() => setIsFormOpen(false)}
-                className="fixed inset-0 bg-black z-40"
+                className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
               />
               <ProductForm 
                 product={editingProduct} 
@@ -173,3 +254,40 @@ export default function Products() {
     </div>
   );
 }
+
+// Sub-component for Action Buttons
+const ActionBtn = ({ icon: Icon, onClick, color }) => {
+  const styles = {
+    blue: "hover:bg-blue-50 hover:text-blue-600",
+    red: "hover:bg-red-50 hover:text-red-600"
+  };
+
+  return (
+    <button 
+      onClick={onClick}
+      className={`p-2 text-slate-400 rounded-lg transition-all duration-200 ${styles[color]} active:scale-95`}
+    >
+      <Icon size={18} />
+    </button>
+  );
+};
+
+// Skeleton Loader Component
+const ProductSkeleton = () => (
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    {[1, 2, 3, 4, 5, 6].map((n) => (
+      <div key={n} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden h-[400px] animate-pulse">
+        <div className="h-56 bg-slate-200" />
+        <div className="p-5 space-y-3">
+          <div className="h-6 bg-slate-200 rounded w-3/4" />
+          <div className="h-4 bg-slate-200 rounded w-1/4" />
+          <div className="h-10 bg-slate-100 rounded w-full mt-4" />
+          <div className="flex justify-between mt-6 pt-4 border-t border-slate-50">
+            <div className="h-6 w-16 bg-slate-200 rounded" />
+            <div className="h-8 w-20 bg-slate-200 rounded" />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);

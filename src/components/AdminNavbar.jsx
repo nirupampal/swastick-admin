@@ -11,14 +11,14 @@ export default function AdminNavbar({ viewLang, setViewLang }) {
   };
 
   return (
-    <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-30 flex items-center justify-between shadow-sm">
+    <nav className="bg-emerald-600 border-b border-slate-200 px-6 py-4 sticky top-0 z-30 flex items-center justify-between shadow-sm">
       {/* Brand */}
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-emerald-200 shadow-md">
+        <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-emerald-600 font-bold text-lg shadow-emerald-200 shadow-md">
           M
         </div>
-        <h1 className="text-xl font-bold text-slate-800 tracking-tight">
-          Microace<span className="text-emerald-600">Admin</span>
+        <h1 className="text-xl font-bold text-white tracking-tight">
+          Microace<span className="text-emerald-100">Admin</span>
         </h1>
       </div>
 
@@ -27,7 +27,7 @@ export default function AdminNavbar({ viewLang, setViewLang }) {
         
         {/* View Language Switcher */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase tracking-wider mr-1">
+          <div className="flex items-center gap-2 text-slate-100 text-xs font-semibold uppercase tracking-wider mr-1">
             <Globe size={14} />
             <span>View In:</span>
           </div>
@@ -55,12 +55,12 @@ export default function AdminNavbar({ viewLang, setViewLang }) {
           </div>
         </div>
 
-        <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
+        <div className="h-6 w-px bg-slate-100 hidden sm:block"></div>
 
         {/* Logout */}
         <button 
           onClick={handleLogout}
-          className="flex items-center gap-2 text-slate-500 hover:text-red-600 transition-colors text-sm font-medium group"
+          className="flex items-center gap-2 text-slate-100 hover:text-red-600 transition-colors text-sm font-medium group"
         >
           <LogOut size={18} className="group-hover:-translate-x-0.5 transition-transform" />
           <span className="hidden sm:inline">Logout</span>
