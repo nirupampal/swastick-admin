@@ -14,11 +14,9 @@ export default function AdminNavbar({ viewLang, setViewLang }) {
     <nav className="bg-emerald-600 border-b border-slate-200 px-6 py-4 sticky top-0 z-30 flex items-center justify-between shadow-sm">
       {/* Brand */}
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-emerald-600 font-bold text-lg shadow-emerald-200 shadow-md">
-          M
-        </div>
+  
         <h1 className="text-xl font-bold text-white tracking-tight">
-          Microace<span className="text-emerald-100">Admin</span>
+          Swastic<span className="text-emerald-100">Admin</span>
         </h1>
       </div>
 
